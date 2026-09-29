@@ -56,6 +56,15 @@ A pipeline automatiza:
 4. autenticação no GHCR;
 5. publicação das imagens no GitHub Container Registry.
 
+   ### Publicação da imagem 2.0 no GHCR
+
+```bash
+docker build -t ghcr.io/juliaaribeiro/devops:2.0 .
+docker push ghcr.io/juliaaribeiro/devops:2.0
+docker pull ghcr.io/juliaaribeiro/devops:2.0
+docker run -d --rm -p 8081:8080 --name app-ghcr-2 ghcr.io/juliaaribeiro/devops:2.0
+curl http://localhost:8081/hello
+
 ## Observações
 
 - A imagem padrão do Dockerfile usa `Hello World`.
