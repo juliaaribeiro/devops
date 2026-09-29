@@ -1,0 +1,67 @@
+name: Docker Build and Push
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Imagem tag to publish"
+        required: false
+        default: "1.0"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/docker-pratico
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Logar no GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Definir tag da imagem
+        id: metadata
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=1.0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Construir imagem localmente
+        run: |
+          docker build -t $IMAGE_NAME:${{ steps.metadata.outputs.tag }} .
+          docker images | grep "$IMAGE_NAME"
+
+      - name: Validar endpoint da aplicação
+        run: |
+          docker run -d --rm -p 8080:8080 --name docker-pratico-test $IMAGE_NAME:${{ steps.metadata.outputs.tag }}
+          sleep 5
+          curl -f http://localhost:8080/hello
+          docker stop docker-pratico-test
+
+      - name: Publicar imagem no GHCR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.metadata.outputs.tag }}
+            ${{ env.IMAGE_NAME }}:latest
